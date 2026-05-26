@@ -3,26 +3,51 @@ project(SwampAttack)
 
 set(CMAKE_CXX_STANDARD 14)
 
-# Указываем Game.cpp, так как ваш файл называется именно так
+# ВАЖНО: Эта команда генерирует файл compile_commands.json, 
+# который скажет VS Code, где искать заголовочные файлы SDL2.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(SOURCES Game.cpp)
 
-if (EMSCRIPTEN)
-    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+if(EMSCRIPTEN)
+    # --- НАСТРОЙКИ ДЛЯ ВЕБА (EMSCRIPTEN) ---
     add_executable(SwampAttack ${SOURCES})
-    target_link_options(SwampAttack PRIVATE
-        "-s" "USE_SFML=2"
-        "-s" "USE_FREETYPE=1"
-        "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/assets@/"
+
+    target_link_options(SwampAttack PRIVATE 
+        "-sUSE_SDL=2" 
+        "-sUSE_SDL_IMAGE=2" 
+        "-sUSE_SDL_TTF=2"                # <-- ВОТ ЭТОТ ФЛАГ ОБЯЗАТЕЛЬНО ДОБАВЬ
+        "-sSDL2_IMAGE_FORMATS=[\"png\"]" 
+        "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
     )
-else()
-    # Find SFML
-    set(SFML_DIR "C:/SFML-2.6.2/lib/cmake/SFML")
-    find_package(SFML 2.6 REQUIRED COMPONENTS graphics window system)
+    
+    message(STATUS "Configuring for WebAssembly with Emscripten!")
+    
+    message(STATUS "Configuring for WebAssembly with Emscripten!")
 
-    # Use the ${SOURCES} variable instead of hardcoding Game.cpp again
+else()
+    # --- НАСТРОЙКИ ДЛЯ ДЕСКТОПА (ЖЕСТКИЕ ПУТИ MinGW) ---
     add_executable(SwampAttack ${SOURCES})
 
-    # Modern CMake approach for SFML: Link the targets directly.
-    # This automatically includes the necessary directories, so you don't need target_include_directories.
-    target_link_libraries(SwampAttack PRIVATE sfml-graphics sfml-window sfml-system)
+    # Базовая папка, куда ты распаковал библиотеки
+    set(SDL_WINGW_DIR "C:/SDL2")
+
+    # 1. Явно говорим, где искать заголовочные файлы (.h)
+    # Чтобы работал #include <SDL2/SDL.h>, путь должен вести строго в папочку include
+    target_include_directories(SwampAttack PRIVATE "${SDL_WINGW_DIR}/include")
+
+    # 2. Явно говорим, где искать файлы библиотек (.a)
+    target_link_directories(SwampAttack PRIVATE "${SDL_WINGW_DIR}/lib")
+
+    # 3. Линкуем библиотеки напрямую по именам файлов из папки lib
+    # Порядок важен! Сначала расширения, потом сам SDL2 и SDL2main
+    target_link_libraries(SwampAttack PRIVATE 
+        mingw32 
+        SDL2main 
+        SDL2 
+        SDL2_image 
+        SDL2_ttf
+    )
+    
+    message(STATUS "Configuring for Desktop with DIRECT MinGW paths!")
 endif()
